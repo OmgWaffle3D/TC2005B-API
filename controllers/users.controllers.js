@@ -66,7 +66,7 @@ export const postUser = (req, res) => {
 
 
 export const putUser = (req, res) => {
-    const {name, age, username, password} = req.body;
+    const {name, username, password, age} = req.body;
     pool.execute("UPDATE users set name = ?, username = ?, password = ?, age = ? where id = ?", 
     [name, username, password, age, req.params.id], (error, results) => {
         if (error) {
