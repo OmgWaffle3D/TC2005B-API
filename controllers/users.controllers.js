@@ -1,29 +1,6 @@
-import { json } from "express";
+import { hash } from "crypto";
 import { pool } from "../db/db.js";
-
-
-export const login = (req, res) => {
-    const { username, password } = req.body;
-    pool.execute("SELECT * from users where username = ?", [username], (error, results) => {
-        if (error) {
-            res.status(500).json({msg: error, users: []});
-            return;
-        }
-        if (results.length < 1) {
-            res.status(401).json({isLogin: false, msg: "Unauthorized", users: []});
-            return;
-        }
-
-        if (results[0].password === password) {
-            res.status(200).json({msg: "OK", users: results});
-        } else {
-            res.status(401).json({isLogin: false, msg: "Unauthorized", users: []});
-            return;
-        }  
-
-
-    });
-};
+import {getSalt, hashPassword} from "./hash.js";
 
 
 export const getUsers = (req,res) => {
@@ -47,40 +24,88 @@ export const getUser = (req,res) => {
         res.status(200).json({msg: "0k", users: results })
         });
 };
-
 export const postUser = (req, res) => {
-    const {name, age, username, password} = req.body;
-    pool.execute("INSERT into users (name, username, password, age) values (?,?,?,?)", [name, username, password, age], (error, results) => {  
-        if (error) {
-            res.status(500).json({ msg: error, users: [] });
-        }
-    });
+    const { name, username, password, age } = req.body;
+    const salt = getSalt();
+    const hash = hashPassword(password, salt);
+    const hashedPassword = salt + hash;
+    // First, insert the user into the database
+    pool.execute(
+        "insert into users (name, username, password, age) values (?,?,?,?)",
+        [name, username, hashedPassword, age],
+        (error, results) => {
+            if (error) {
+                res.status(500).json({ msg: error, users: [] });
+                return;
+            }
 
-    pool.execute("SELECT * FROM users where username = ?", [username], (error, results) => {
-        if (error) {
-            res.status(500).json({ msg: error, users: [] });
+            // After successful insertion, fetch the newly created user
+            pool.execute(
+                "select * from users where username = ?",
+                [username],
+                (error, results) => {
+                    if (error) {
+                        res.status(500).json({ msg: error, users: [] });
+                        return;
+                    }
+
+                    // Send the response with the newly created user
+                    res.status(200).json({ msg: "0k", users: results });
+                }
+            );
         }
-        res.status(200).json({ msg: "OK", users: [] });
-    });
+    );
 };
-
-
-export const putUser = (req, res) => {
+export const putUser = (req,res) => {
     const {name, username, password, age} = req.body;
-    pool.execute("UPDATE users set name = ?, username = ?, password = ?, age = ? where id = ?", 
-    [name, username, password, age, req.params.id], (error, results) => {
-        if (error) {
-            res.status(500).json({ msg: error, users: [] });
-        }
-        res.status(200).json({ msg: "OK", users: results });
-    });
+    pool.execute(
+        "update users set name=?, username=?, password=?, age=? where id = ?",
+        [name, username, password, age, req.params.id],
+        (error, results) => {
+            if (error) {
+                res.status(500).json({msg: error, users: results});
+            }
+            res.status(200).json({msg: "0k", users: results});
+        });
 };
-export const deleteUser = (req, res) => {
-    pool.execute("DELETE from users where id = ?", [req.params.id], (error, results) => {
-        if (error) {
-            res.status(500).json({ msg: error, users: [] });
+export const deleteUser = (req,res) => {
+    pool.execute(
+        "delete from users where id = ?",
+        [req.params.id],
+        (error,results) => {
+            if (error) {
+                res.status(500).json({ msg: "error", users: []});
+            }
+            res.status(200).json({msg: "0k", users: results});
+        });
+};
+export const login = (req,res) => {
+    const { username, password } = req.body;
+    pool.execute(
+        "select * from users where username = ?",
+        [username],
+        (error, results) => {
+            if (error) {
+                res.status(500).json({msg: error, users: [] });
+                return;
+            }
+            if (results.length < 1 ){
+                res.
+                    status(401)
+                    .json({ isLogin : false, msg: "credenciales invalidas", user: {} })
+                return;
+            }
+            // comparación de constraseña
+            const salt = results[0].password.substring(0, process.env.SALT_SIZE);
+            const hash = hashPassword(password, salt);
+            if(results[0].password === salt + hash){
+                res.status(200).json({ isLogin : true, msg: "0k", user: results[0] })
+            } else {
+                res.
+                status(401)
+                .json({ isLogin : false, msg: "credenciales invalidas", user: {} })
+                return;
+            };
         }
-        res.status(200).json({ msg: "OK", users: results });
-    });
-
+    )
 };
