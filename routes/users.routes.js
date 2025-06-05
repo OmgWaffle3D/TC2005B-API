@@ -8,5 +8,5 @@ router.post("/users", postUser);
 router.put("/users/:id", putUser);
 router.delete("/users/:id", deleteUser);
 router.post("/login", login);
-
+router.get("/game/users/:id", getUser);
 export default router;

@@ -21,7 +21,7 @@ export const getUser = (req,res) => {
             res.status(500).json({msg: error, users: [] });
             return;
         }
-        res.status(200).json({msg: "0k", users: results })
+        res.status(200).json(results[0]);
         });
 };
 export const postUser = (req, res) => {
